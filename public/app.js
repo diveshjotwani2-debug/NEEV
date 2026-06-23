@@ -1,8 +1,6 @@
 // ==========================================================================
-// NEEV - FRONTEND CONTROLLER & SPA ROUTER
+// NEEV - SERVERLESS CLIENT CONTROLLER & SPA ROUTER
 // ==========================================================================
-
-const API_BASE = '/api';
 
 class NeevApp {
   constructor() {
@@ -24,7 +22,7 @@ class NeevApp {
     // Initialize
     window.addEventListener('hashchange', this.handleRoute);
     window.addEventListener('load', async () => {
-      await this.initSession();
+      this.initSession();
       this.handleRoute();
       this.setupMobileMenu();
       
@@ -35,26 +33,17 @@ class NeevApp {
     });
   }
 
-  // Session Management
-  async initSession() {
+  // Session Management (Client-Side LocalStorage Mock)
+  initSession() {
     if (this.token) {
-      try {
-        const response = await fetch(`${API_BASE}/auth/me`, {
-          headers: {
-            'Authorization': `Bearer ${this.token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          this.user = data.user;
-          this.updateNavState();
-        } else {
-          this.logout();
-        }
-      } catch (err) {
-        console.error('Session initialization failed:', err);
+      const usersRaw = localStorage.getItem('neev_users');
+      const users = usersRaw ? JSON.parse(usersRaw) : [];
+      const user = users.find(u => u.id === this.token);
+      
+      if (user) {
+        this.user = user;
+        this.updateNavState();
+      } else {
         this.logout();
       }
     } else {
@@ -154,7 +143,7 @@ class NeevApp {
   }
 
   // Render Views
-  async renderView() {
+  renderView() {
     const viewContainer = document.getElementById('app-view');
     viewContainer.innerHTML = `
       <div class="loading-spinner-wrapper">
@@ -169,12 +158,12 @@ class NeevApp {
           viewContainer.innerHTML = this.getHomeHtml();
           break;
         case 'explorer':
-          await this.loadCareersData();
+          this.loadCareersData();
           viewContainer.innerHTML = this.getExplorerHtml();
           this.setupExplorerEvents();
           break;
         case 'career-details':
-          await this.loadCareerDetails(this.routeParams.id);
+          this.loadCareerDetails(this.routeParams.id);
           break;
         case 'dashboard':
           if (!this.user) {
@@ -182,7 +171,7 @@ class NeevApp {
             location.hash = '#login';
             return;
           }
-          await this.loadDashboardData();
+          this.loadDashboardData();
           break;
         case 'login':
           if (this.user) { location.hash = '#dashboard'; return; }
@@ -230,69 +219,93 @@ class NeevApp {
     }, 4000);
   }
 
-  // API Call Helpers
-  async loadCareersData() {
-    if (this.careers.length === 0) {
-      const response = await fetch(`${API_BASE}/careers`);
-      if (response.ok) {
-        this.careers = await response.json();
-      }
-      
-      const specResponse = await fetch(`${API_BASE}/careers/specializations`);
-      if (specResponse.ok) {
-        this.specializations = await specResponse.json();
-      }
-    }
+  // Local Database Helpers
+  loadCareersData() {
+    // Read directly from the globally imported CAREER_DATABASE object
+    this.careers = CAREER_DATABASE.careers;
+    this.specializations = CAREER_DATABASE.specializations;
   }
 
-  async loadCareerDetails(id) {
+  loadCareerDetails(id) {
     const viewContainer = document.getElementById('app-view');
-    try {
-      const response = await fetch(`${API_BASE}/careers/specializations/${id}`);
-      if (response.ok) {
-        const spec = await response.json();
-        viewContainer.innerHTML = this.getCareerDetailsHtml(spec);
-        
-        setTimeout(() => {
-          document.querySelectorAll('.salary-bar-fill').forEach(bar => {
-            const width = bar.getAttribute('data-width');
-            bar.style.width = width;
-          });
-        }, 100);
-      } else {
-        this.showToast('Specialization details not found.', 'error');
-        location.hash = '#explorer';
-      }
-    } catch (err) {
-      console.error(err);
-      this.showToast('Failed to fetch details.', 'error');
+    const spec = CAREER_DATABASE.specializations.find(s => s.id === id);
+    
+    if (!spec) {
+      this.showToast('Specialization details not found.', 'error');
+      location.hash = '#explorer';
+      return;
     }
-  }
 
-  async loadDashboardData() {
-    const viewContainer = document.getElementById('app-view');
-    try {
-      const response = await fetch(`${API_BASE}/dashboard`, {
-        headers: {
-          'Authorization': `Bearer ${this.token}`,
-          'Content-Type': 'application/json'
-        }
+    // Match timeline and curriculum from static database
+    const timeline = CAREER_DATABASE.timeline.filter(t => t.specializationId === id).sort((a,b) => a.year - b.year);
+    const curriculum = CAREER_DATABASE.curriculum.filter(c => c.specializationId === id).sort((a,b) => a.year - b.year);
+    const salary = CAREER_DATABASE.salaries.find(s => s.specializationId === id) || {
+      year1: 350000, year3: 700000, year5: 1200000,
+      trajectory: 'Entry Level -> Mid Specialist -> Lead Practitioner'
+    };
+    const recruiters = spec.recruiters || ['Top National Tech Labs', 'Major Corporate Hubs'];
+
+    const detailedSpec = {
+      ...spec,
+      timeline: timeline.length > 0 ? timeline : [
+        { year: 1, focus: 'Foundations', milestoneDescription: 'Read 3 introductory textbooks and master terminology.' },
+        { year: 2, focus: 'Skill Labs', milestoneDescription: 'Complete 2 practical mini-projects.' },
+        { year: 3, focus: 'Specialization', milestoneDescription: 'Complete 1 professional level specialization certificate.' },
+        { year: 4, focus: 'Field Transition', milestoneDescription: 'Complete a 3-month field internship.' }
+      ],
+      curriculum: curriculum.length > 0 ? curriculum : [
+        { year: 1, subjects: 'Foundation Principles; Introduction to Field; Mathematical Basics', skillsGained: 'Domain literacy, terminology' },
+        { year: 2, subjects: 'Intermediate Theories; Case Studies & Experiments; Practical Labs', skillsGained: 'Hands-on practice, methodologies' },
+        { year: 3, subjects: 'Specialized Electives; Advanced Tools; Industry Standards', skillsGained: 'System design, tool optimization' },
+        { year: 4, subjects: 'Professional Ethics; Internship / Field Work; Final Project', skillsGained: 'Real-world deployment, operations' }
+      ],
+      salary,
+      recruiters
+    };
+
+    viewContainer.innerHTML = this.getCareerDetailsHtml(detailedSpec);
+    
+    setTimeout(() => {
+      document.querySelectorAll('.salary-bar-fill').forEach(bar => {
+        const width = bar.getAttribute('data-width');
+        bar.style.width = width;
       });
+    }, 100);
+  }
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.enrolled) {
-          this.activeEnrollment = data.enrollment;
-          viewContainer.innerHTML = this.getDashboardHtml(data);
-          this.animateDashboardProgress();
-          this.setupDashboardEvents();
-        } else {
-          viewContainer.innerHTML = this.getDashboardUnenrolledHtml();
-        }
+  loadDashboardData() {
+    const viewContainer = document.getElementById('app-view');
+    const enrollmentKey = `neev_enrollment_${this.user.id}`;
+    const enrollmentRaw = localStorage.getItem(enrollmentKey);
+
+    if (enrollmentRaw) {
+      const enrollment = JSON.parse(enrollmentRaw);
+      this.activeEnrollment = enrollment;
+
+      // Extract YouTube guides
+      const youtubeVideos = CAREER_DATABASE.youtubeVideos[enrollment.specializationId] || [
+        { id: 'ukLnPbIffxE', title: 'How to Study Effectively for Exams (Active Recall)', channel: 'Ali Abdaal', description: 'Science-backed techniques like spaced repetition and practice testing to learn 2x faster.', url: 'https://www.youtube.com/watch?v=ukLnPbIffxE' },
+        { id: 'CqHjOig0v3s', title: 'My Study Method - How I Memorize Complex Concepts', channel: 'Anuj Pachhel', description: 'Practical roadmap of notes, schedules, and active recall used by a top medical student.', url: 'https://www.youtube.com/watch?v=CqHjOig0v3s' }
+      ];
+
+      // Local notifications
+      const notifications = [
+        { id: 'n1', text: 'Welcome to your career journey! Keep up Phase 1 progress.', date: new Date(enrollment.enrolledAt).toLocaleDateString() }
+      ];
+
+      if (enrollment.progressPercent >= 50) {
+        notifications.unshift({ id: 'n2', text: 'Milestone Alert! You have finished 50% of your checklist. Keep it up!', date: 'Just now' });
       }
-    } catch (err) {
-      console.error(err);
-      this.showToast('Failed to load dashboard.', 'error');
+
+      viewContainer.innerHTML = this.getDashboardHtml({
+        enrollment,
+        youtubeVideos,
+        notifications
+      });
+      this.animateDashboardProgress();
+      this.setupDashboardEvents();
+    } else {
+      viewContainer.innerHTML = this.getDashboardUnenrolledHtml();
     }
   }
 
@@ -680,35 +693,47 @@ class NeevApp {
     `;
   }
 
-  async enrollInPath(specId) {
+  enrollInPath(specId) {
     if (!this.user) {
       this.showToast('Please sign in to enroll in a career path.', 'warning');
       location.hash = '#login';
       return;
     }
 
-    try {
-      const response = await fetch(`${API_BASE}/dashboard/enroll`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ specializationId: specId })
-      });
+    const spec = CAREER_DATABASE.specializations.find(s => s.id === specId);
+    if (!spec) return;
 
-      if (response.ok) {
-        const data = await response.json();
-        this.showToast(data.message, 'success');
-        location.hash = '#dashboard';
-      } else {
-        const err = await response.json();
-        this.showToast(err.error || 'Enrollment failed.', 'error');
-      }
-    } catch (err) {
-      console.error(err);
-      this.showToast('Server connection failed.', 'error');
-    }
+    const enrollmentKey = `neev_enrollment_${this.user.id}`;
+    
+    const defaultTasks = [
+      { id: 't1', text: 'Review syllabus and curriculum overview', completed: false, category: 'Phase 1' },
+      { id: 't2', text: 'Set study schedule in profile settings', completed: false, category: 'Phase 1' },
+      { id: 't3', text: 'Read the prerequisite material list', completed: false, category: 'Phase 1' },
+      { id: 't4', text: 'Join Discord student study group', completed: false, category: 'Phase 2' },
+      { id: 't5', text: 'Complete first online fundamentals course module', completed: false, category: 'Phase 2' },
+      { id: 't6', text: 'Build 1 basic mini-project for your portfolio', completed: false, category: 'Phase 2' },
+      { id: 't7', text: 'Master core concepts using recommended video course', completed: false, category: 'Phase 3' },
+      { id: 't8', text: 'Apply for internship positions on platform', completed: false, category: 'Phase 4' }
+    ];
+
+    const newEnrollment = {
+      userId: this.user.id,
+      specializationId: specId,
+      enrolledAt: new Date().toISOString(),
+      progressPercent: 0,
+      currentPhase: 'Phase 1: Foundation',
+      tasks: defaultTasks,
+      specializationName: spec.name,
+      careerName: spec.careerId === 'eng' ? 'Engineering' : spec.careerId === 'med' ? 'Medicine' : spec.careerId === 'ca' ? 'Chartered Accountancy' : spec.careerId,
+      duration: spec.duration,
+      cost: spec.totalCost
+    };
+
+    localStorage.setItem(enrollmentKey, JSON.stringify(newEnrollment));
+    this.activeEnrollment = newEnrollment;
+    
+    this.showToast(`Enrolled successfully in ${spec.name}!`, 'success');
+    location.hash = '#dashboard';
   }
 
   // Dashboard Views templates
@@ -927,36 +952,37 @@ class NeevApp {
     });
   }
 
-  async saveTasksUpdated() {
+  saveTasksUpdated() {
     this.syncLocalChecklistInputs();
     const finalTasks = this.localTasks.filter(t => t.text !== '');
 
-    try {
-      const response = await fetch(`${API_BASE}/dashboard/tasks`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${this.token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ tasks: finalTasks })
-      });
+    this.activeEnrollment.tasks = finalTasks;
 
-      if (response.ok) {
-        const data = await response.json();
-        this.activeEnrollment = data.enrollment;
-        this.isEditingTasks = false;
-        this.showToast('Checklist updated successfully!', 'success');
-        this.renderView();
-      } else {
-        this.showToast('Failed to save checklist.', 'error');
-      }
-    } catch (err) {
-      console.error(err);
-      this.showToast('Network error while saving tasks.', 'error');
+    // Recalculate progress
+    const total = finalTasks.length;
+    const completed = finalTasks.filter(t => t.completed).length;
+    this.activeEnrollment.progressPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+    // Update phase
+    if (this.activeEnrollment.progressPercent <= 25) {
+      this.activeEnrollment.currentPhase = 'Phase 1: Foundation';
+    } else if (this.activeEnrollment.progressPercent <= 50) {
+      this.activeEnrollment.currentPhase = 'Phase 2: Core Concepts';
+    } else if (this.activeEnrollment.progressPercent <= 75) {
+      this.activeEnrollment.currentPhase = 'Phase 3: Specialization Niche';
+    } else {
+      this.activeEnrollment.currentPhase = 'Phase 4: Internship & Capstone';
     }
+
+    const enrollmentKey = `neev_enrollment_${this.user.id}`;
+    localStorage.setItem(enrollmentKey, JSON.stringify(this.activeEnrollment));
+
+    this.isEditingTasks = false;
+    this.showToast('Checklist updated successfully!', 'success');
+    this.renderView();
   }
 
-  async toggleTask(taskId) {
+  toggleTask(taskId) {
     if (!this.activeEnrollment) return;
     
     const updatedTasks = this.activeEnrollment.tasks.map(t => {
@@ -966,63 +992,57 @@ class NeevApp {
       return t;
     });
 
-    try {
-      const response = await fetch(`${API_BASE}/dashboard/tasks`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${this.token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ tasks: updatedTasks })
-      });
+    this.activeEnrollment.tasks = updatedTasks;
 
-      if (response.ok) {
-        const data = await response.json();
-        this.activeEnrollment = data.enrollment;
-        this.renderView();
-      }
-    } catch (err) {
-      console.error(err);
-      this.showToast('Failed to sync checklist progress.', 'error');
+    // Recalculate progress
+    const total = updatedTasks.length;
+    const completed = updatedTasks.filter(t => t.completed).length;
+    this.activeEnrollment.progressPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+    // Update phase
+    if (this.activeEnrollment.progressPercent <= 25) {
+      this.activeEnrollment.currentPhase = 'Phase 1: Foundation';
+    } else if (this.activeEnrollment.progressPercent <= 50) {
+      this.activeEnrollment.currentPhase = 'Phase 2: Core Concepts';
+    } else if (this.activeEnrollment.progressPercent <= 75) {
+      this.activeEnrollment.currentPhase = 'Phase 3: Specialization Niche';
+    } else {
+      this.activeEnrollment.currentPhase = 'Phase 4: Internship & Capstone';
     }
+
+    const enrollmentKey = `neev_enrollment_${this.user.id}`;
+    localStorage.setItem(enrollmentKey, JSON.stringify(this.activeEnrollment));
+
+    this.renderView();
   }
 
   setupDashboardEvents() {
     const settingsForm = document.getElementById('settings-form');
     if (settingsForm) {
-      settingsForm.addEventListener('submit', async (e) => {
+      settingsForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const formData = new FormData(settingsForm);
-        const settingsPayload = {
-          preferredStudyTime: formData.get('preferredStudyTime'),
-          goalDate: formData.get('goalDate'),
+        
+        // Update user settings
+        this.user.settings = {
+          preferredStudyTime: formData.get('preferredStudyTime') || this.user.settings.preferredStudyTime,
+          goalDate: formData.get('goalDate') || this.user.settings.goalDate,
           emailNotifications: settingsForm.querySelector('[name="emailNotifications"]').checked,
           weeklySummary: settingsForm.querySelector('[name="weeklySummary"]').checked
         };
 
-        try {
-          const response = await fetch(`${API_BASE}/dashboard/settings`, {
-            method: 'PUT',
-            headers: {
-              'Authorization': `Bearer ${this.token}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(settingsPayload)
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            this.user = data.user;
-            this.showToast('Settings saved successfully.', 'success');
-            this.loadDashboardData();
-          } else {
-            const err = await response.json();
-            this.showToast(err.error || 'Failed to save settings.', 'error');
-          }
-        } catch (err) {
-          console.error(err);
-          this.showToast('Network error while saving settings.', 'error');
+        // Save back to local storage list
+        const usersRaw = localStorage.getItem('neev_users');
+        const users = usersRaw ? JSON.parse(usersRaw) : [];
+        const index = users.findIndex(u => u.id === this.user.id);
+        
+        if (index !== -1) {
+          users[index] = this.user;
+          localStorage.setItem('neev_users', JSON.stringify(users));
         }
+
+        this.showToast('Settings saved successfully.', 'success');
+        this.loadDashboardData();
       });
     }
   }
@@ -1089,7 +1109,7 @@ class NeevApp {
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    container.innerHTML = ''; // Clear loading spinner placeholder
+    container.innerHTML = '';
     container.appendChild(renderer.domElement);
 
     // Particle constellation
@@ -1151,7 +1171,6 @@ class NeevApp {
     const particleSystem = new THREE.Points(particlesGeometry, particlesMaterial);
     scene.add(particleSystem);
 
-    // Central geometric morphing wireframe shape
     const icoGeometry = new THREE.IcosahedronGeometry(7, 1);
     const icoMaterial = new THREE.MeshBasicMaterial({
       color: 0x4f46e5,
@@ -1238,155 +1257,81 @@ class NeevApp {
     });
   }
 
-  // Auth Page Render templates & Logic
-  getLoginHtml() {
-    return `
-      <div class="container auth-page-container">
-        <div class="glass-card auth-card">
-          <div class="auth-header">
-            <h2 class="auth-title">Welcome Back</h2>
-            <p class="auth-subtitle">Sign in to track your career roadmap progress.</p>
-          </div>
-          <form id="login-form">
-            <div class="form-group">
-              <label class="form-label">Email Address</label>
-              <input type="email" class="form-input" name="email" required placeholder="name@school.com">
-            </div>
-            <div class="form-group" style="margin-bottom: 24px;">
-              <label class="form-label">Password</label>
-              <input type="password" class="form-input" name="password" required placeholder="••••••••">
-            </div>
-            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px;">Sign In</button>
-          </form>
-          <div class="auth-footer-text">
-            Don't have an account? <a href="#register">Get Started Free</a>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
+  // Auth Forms Logic (Local Storage)
   setupLoginEvents() {
     const form = document.getElementById('login-form');
     if (form) {
-      form.addEventListener('submit', async (e) => {
+      form.addEventListener('submit', (e) => {
         e.preventDefault();
-        const email = form.email.value;
+        const email = form.email.value.trim().toLowerCase();
         const password = form.password.value;
 
-        try {
-          const response = await fetch(`${API_BASE}/auth/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
-          });
+        const usersRaw = localStorage.getItem('neev_users');
+        const users = usersRaw ? JSON.parse(usersRaw) : [];
+        const user = users.find(u => u.email.toLowerCase() === email && u.password === password);
 
-          const data = await response.json();
-          if (response.ok) {
-            this.token = data.token;
-            this.user = data.user;
-            localStorage.setItem('cf_token', data.token);
-            this.updateNavState();
-            this.showToast(data.message, 'success');
-            location.hash = '#dashboard';
-          } else {
-            this.showToast(data.error || 'Invalid credentials.', 'error');
-          }
-        } catch (err) {
-          console.error(err);
-          this.showToast('Network error during login.', 'error');
+        if (user) {
+          this.token = user.id;
+          this.user = user;
+          localStorage.setItem('cf_token', user.id);
+          this.updateNavState();
+          this.showToast('Logged in successfully!', 'success');
+          location.hash = '#dashboard';
+        } else {
+          this.showToast('Invalid email or password.', 'error');
         }
       });
     }
   }
 
-  getRegisterHtml() {
-    return `
-      <div class="container auth-page-container">
-        <div class="glass-card auth-card">
-          <div class="auth-header">
-            <h2 class="auth-title">Create Free Account</h2>
-            <p class="auth-subtitle">Get custom checklists, timelines, and study planners.</p>
-          </div>
-          <form id="register-form">
-            <div class="form-group">
-              <label class="form-label">Full Name</label>
-              <input type="text" class="form-input" name="fullname" required placeholder="Rahul Kumar">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Email Address</label>
-              <input type="email" class="form-input" name="email" required placeholder="name@school.com">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Mobile Phone Number</label>
-              <input type="tel" class="form-input" name="phone" placeholder="9876543210">
-            </div>
-            <div class="form-group">
-              <label class="form-label">School / Boarding Center</label>
-              <input type="text" class="form-input" name="school" placeholder="e.g. St. Pauls, Belgaum">
-            </div>
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-              <div class="form-group">
-                <label class="form-label">12th Stream</label>
-                <select class="form-input" name="stream" required>
-                  <option value="Science">Science (PCM/PCB)</option>
-                  <option value="Commerce">Commerce</option>
-                  <option value="Arts">Arts & Humanities</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Password</label>
-                <input type="password" class="form-input" name="password" required placeholder="Min 6 characters">
-              </div>
-            </div>
-
-            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; margin-top: 10px;">Sign Up</button>
-          </form>
-          <div class="auth-footer-text">
-            Already have an account? <a href="#login">Sign In</a>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
   setupRegisterEvents() {
     const form = document.getElementById('register-form');
     if (form) {
-      form.addEventListener('submit', async (e) => {
+      form.addEventListener('submit', (e) => {
         e.preventDefault();
-        const payload = {
-          name: form.fullname.value,
-          email: form.email.value,
-          phone: form.phone.value,
-          school: form.school.value,
-          stream: form.stream.value,
-          password: form.password.value
+        const name = form.fullname.value.trim();
+        const email = form.email.value.trim().toLowerCase();
+        const phone = form.phone.value.trim();
+        const school = form.school.value.trim();
+        const stream = form.stream.value;
+        const password = form.password.value;
+
+        const usersRaw = localStorage.getItem('neev_users');
+        const users = usersRaw ? JSON.parse(usersRaw) : [];
+        const existing = users.find(u => u.email.toLowerCase() === email);
+
+        if (existing) {
+          this.showToast('An account with this email already exists.', 'error');
+          return;
+        }
+
+        const newUser = {
+          id: 'user_' + Date.now() + '_' + Math.floor(Math.random() * 100),
+          name,
+          email,
+          phone,
+          school,
+          stream,
+          password, // Stored locally for mock verification
+          createdAt: new Date().toISOString(),
+          settings: {
+            emailNotifications: true,
+            weeklySummary: true,
+            preferredStudyTime: '14:00',
+            goalDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+          }
         };
 
-        try {
-          const response = await fetch(`${API_BASE}/auth/register`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
+        users.push(newUser);
+        localStorage.setItem('neev_users', JSON.stringify(users));
 
-          const data = await response.json();
-          if (response.ok) {
-            this.token = data.token;
-            this.user = data.user;
-            localStorage.setItem('cf_token', data.token);
-            this.updateNavState();
-            this.showToast(data.message, 'success');
-            location.hash = '#dashboard';
-          } else {
-            this.showToast(data.error || 'Registration failed.', 'error');
-          }
-        } catch (err) {
-          console.error(err);
-          this.showToast('Network error during registration.', 'error');
-        }
+        this.token = newUser.id;
+        this.user = newUser;
+        localStorage.setItem('cf_token', newUser.id);
+        
+        this.updateNavState();
+        this.showToast('Account created successfully!', 'success');
+        location.hash = '#dashboard';
       });
     }
   }
