@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Neev - Free structured career pathways, roadmaps, and video course planners for post-12th Indian students in Tier-2 cities.">
+  <meta name="keywords" content="Career guidance, Post-12th India, Science Careers, Commerce Careers, Arts Careers, Engineering roadmaps, CA roadmap, Free Career counseling, Neev">
+  <title>Neev | Clear Career Pathways & Planners for Indian Students</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Three.js CDN for Interactive 3D graphics -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Custom Cursor Elements -->
+  <div class="cursor-dot" id="cursor-dot"></div>
+  <div class="cursor-circle" id="cursor-circle"></div>
+
+  <!-- Interactive 3D Background Container -->
+  <div id="three-bg"></div>
+
+  <!-- App Header / Navigation -->
+  <header class="app-header">
+    <div class="container header-container">
+      <div class="logo-area" onclick="location.hash = '#home'">
+        <div class="logo-icon">NV</div>
+        <span class="logo-text">Neev</span>
+      </div>
+      
+      <!-- Nav Links -->
+      <nav class="app-nav" id="main-nav">
+        <a href="#home" class="nav-link active">Home</a>
+        <a href="#explorer" class="nav-link">Explore Careers</a>
+        <a href="#dashboard" class="nav-link" id="nav-dashboard" style="display: none;">My Dashboard</a>
+      </nav>
+
+      <!-- Auth Action Area -->
+      <div class="auth-actions" id="auth-actions-container">
+        <a href="#login" class="btn btn-outline" id="nav-login">Sign In</a>
+        <a href="#register" class="btn btn-primary" id="nav-register">Get Started</a>
+        
+        <!-- Profile Dropdown -->
+        <div class="profile-menu" id="nav-profile-menu" style="display: none;">
+          <span class="profile-name" id="user-display-name">Student</span>
+          <button class="btn btn-sm btn-outline" onclick="app.logout()">Logout</button>
+        </div>
+      </div>
+
+      <!-- Mobile Menu Toggle Button -->
+      <button class="mobile-menu-toggle" id="mobile-toggle" aria-label="Toggle menu">
+        <svg viewBox="0 0 24 24" class="icon-svg"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Notification Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Primary Mount Point for Router Views -->
+  <main class="app-view-container">
+    <div id="app-view">
+      <div class="loading-spinner-wrapper">
+        <div class="spinner"></div>
+        <p>Loading Neev...</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- App Footer -->
+  <footer class="app-footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <div class="logo-area">
+          <div class="logo-icon">NV</div>
+          <span class="logo-text">Neev</span>
+        </div>
+        <p class="footer-tagline">Providing honest, data-backed career roadmaps and real YouTube learning courses to students in Belgaum, Hubballi, Dharwad, Mysuru, and beyond.</p>
+      </div>
+      <div class="footer-links">
+        <h4>Explore Streams</h4>
+        <a href="#explorer?stream=Science">Science Careers</a>
+        <a href="#explorer?stream=Commerce">Commerce Careers</a>
+        <a href="#explorer?stream=Arts">Arts Careers</a>
+      </div>
+      <div class="footer-links">
+        <h4>Platform</h4>
+        <a href="#home">How it Works</a>
+        <a href="#login">Video Guides</a>
+        <a href="#register">Create Free Account</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="container footer-bottom-flex">
+        <p>&copy; 2026 Neev. Built for Indian Students. All rights reserved.</p>
+        <div class="footer-badges">
+          <span class="badge badge-success">Free Career Support</span>
+          <span class="badge badge-info">100% India Specific</span>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- App Logic Router -->
+  <script src="careersData.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
