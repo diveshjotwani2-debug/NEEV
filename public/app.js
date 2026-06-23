@@ -1258,6 +1258,84 @@ class NeevApp {
   }
 
   // Auth Forms Logic (Local Storage)
+  getLoginHtml() {
+    return `
+      <div class="container auth-page-container">
+        <div class="glass-card auth-card">
+          <div class="auth-header">
+            <h2 class="auth-title">Welcome Back</h2>
+            <p class="auth-subtitle">Sign in to track your career roadmap progress.</p>
+          </div>
+          <form id="login-form">
+            <div class="form-group">
+              <label class="form-label">Email Address</label>
+              <input type="email" class="form-input" name="email" required placeholder="name@school.com">
+            </div>
+            <div class="form-group" style="margin-bottom: 24px;">
+              <label class="form-label">Password</label>
+              <input type="password" class="form-input" name="password" required placeholder="••••••••">
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px;">Sign In</button>
+          </form>
+          <div class="auth-footer-text">
+            Don't have an account? <a href="#register">Get Started Free</a>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  getRegisterHtml() {
+    return `
+      <div class="container auth-page-container">
+        <div class="glass-card auth-card">
+          <div class="auth-header">
+            <h2 class="auth-title">Create Free Account</h2>
+            <p class="auth-subtitle">Get custom checklists, timelines, and study planners.</p>
+          </div>
+          <form id="register-form">
+            <div class="form-group">
+              <label class="form-label">Full Name</label>
+              <input type="text" class="form-input" name="fullname" required placeholder="Rahul Kumar">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email Address</label>
+              <input type="email" class="form-input" name="email" required placeholder="name@school.com">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Mobile Phone Number</label>
+              <input type="tel" class="form-input" name="phone" placeholder="9876543210">
+            </div>
+            <div class="form-group">
+              <label class="form-label">School / Boarding Center</label>
+              <input type="text" class="form-input" name="school" placeholder="e.g. St. Pauls, Belgaum">
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+              <div class="form-group">
+                <label class="form-label">12th Stream</label>
+                <select class="form-input" name="stream" required>
+                  <option value="Science">Science (PCM/PCB)</option>
+                  <option value="Commerce">Commerce</option>
+                  <option value="Arts">Arts & Humanities</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Password</label>
+                <input type="password" class="form-input" name="password" required placeholder="Min 6 characters">
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; margin-top: 10px;">Sign Up</button>
+          </form>
+          <div class="auth-footer-text">
+            Already have an account? <a href="#login">Sign In</a>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   setupLoginEvents() {
     const form = document.getElementById('login-form');
     if (form) {
